@@ -38,16 +38,31 @@ def get_temp(): #Fundtion to read the value of Temperature
     trimmed_data = lines[1].find('t=') #find the "t=" in the line
                
     if trimmed_data != -1:
-        temp_string = lines[1][trimmed_data+2:] #trim the strig only to the temoerature value
+        temp_string = lines[1][trimmed_data+2:] #trim the strig only to the temoerature value        
         return temp_string
     else: 
         return "empty"
 
+def convertToDisplayFormat(inputTemp):
+    
+    return inputTemp[:2] + "." + inputTemp[2:].strip() + " Celcius"
+    
 
-lcd.clear()
+
+'''lcd.clear()
 lcd.backlight = True
 lcd.message = get_temp()
 time.sleep(4)
 lcd.clear()
-lcd.backlight = False
+lcd.backlight = False'''
+
+
+i = 0
+lcd.backlight = True
+while (i < 3):
+    i = i + 1
+    lcd.message = convertToDisplayFormat(get_temp())
+    time.sleep(2)
+    
+    
 
