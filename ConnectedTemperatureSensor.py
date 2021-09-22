@@ -48,54 +48,54 @@ firebaseConfig = {
   "appId": "1:363436241273:web:3404021c99f76d3ed2bfa8", 
   "measurementId": "G-CD08HW864M" 
 }
-    
 
-def printTemp():
-    print(TempReader.getTemp())
-    t = Timer(5.0, printTemp)
+#instantiate variables to keep track of program
+firebaseDatabase = pyrebase.initialize_app(firebaseConfig).database()
+timeStreamDB = TimeStream('past_temperatures', 'last_300_seconds', 'us-east-2')
+virtualButtonPressed = False
+lastTempReading = None
+
+def updateTempReading():
+    temp = TempReader.getTemp()
+    global lastTempReading
+    lastTempReading = temp
+    timeStreamDB.write(temp)
+    print("last T reading = " + temp)
+    t = Timer(1.0, updateTempReading)
     t.start()
 
 
-'''
-i = 0
+#firebase listener function
+def virtualButton(event):
+    virtualButtonPressed = event["data"]
+
+firebaseDatabase.child("notify").stream(virtualButton)
+
+# begin reading t values
+t = Timer(1.0, updateTempReading)
+t.start()
+
 lcd.backlight = True
-lcd.clear()
-while (1):
-    #i = i + 1
-    #lcd.message = convertToDisplayFormat(get_temp())
+lcd.message = "Powering on :)"
+time.sleep(5.0)
+
+# main controll loop
+while (True):
     
-    buttonState = GPIO.input(button)
+     buttonState = GPIO.input(button)
     
     if (buttonState == False):
 
-        lcd.message = convertToDisplayFormat(get_temp())
-        time.sleep(2)
+        lcd.backlight = True
+        lcd.message = TempReader.convertToDisplayFormat(lastTempReading)
+    
+    else:
+        lcd.backlight = False
         lcd.clear()
+        updatedSinceLastTempReading = True
     
-    time.sleep(.01)'''
-
-
-# code to write to the timeseries database
-lcd.backlight = False
-
-#firebase listener function
-def virtualButton(event):
-    print(event["data"])
-  
-  
-timeStreamDB = TimeStream('past_temperatures', 'last_300_seconds', 'us-east-2')
-timeStreamDB.write(TempReader.getTemp())
-
-firebaseDatabase = pyrebase.initialize_app(firebaseConfig).database()
-firebaseDatabase.child("notify").stream(virtualButton)
-
-t = Timer(5.0, printTemp)
-t.start()
-
-while (True):
+    time.sleep(0.05)
     
-    print("looping")
-    time.sleep(2)
     
     
     
