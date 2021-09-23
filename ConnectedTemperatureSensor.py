@@ -1,13 +1,13 @@
 from threading import Timer
 import pyrebase
 from TempReader import TempReader
-from AwsTimeStream import TimeStream
 from datetime import datetime
 import RPi.GPIO as GPIO
 import board
 import digitalio
 import adafruit_character_lcd.character_lcd as characterlcd
 import time
+import datetime
 import boto3
 import os
 
@@ -47,19 +47,29 @@ firebaseConfig = {
   "messagingSenderId": "363436241273", 
   "appId": "1:363436241273:web:3404021c99f76d3ed2bfa8", 
   "measurementId": "G-CD08HW864M" 
-}
+}                     
 
 #instantiate variables to keep track of program
 firebaseDatabase = pyrebase.initialize_app(firebaseConfig).database()
-timeStreamDB = TimeStream('past_temperatures', 'last_300_seconds', 'us-east-2')
+last300 = []
 virtualButtonPressed = False
 lastTempReading = None
 
 def updateTempReading():
+    
     temp = TempReader.getTemp()
     global lastTempReading
     lastTempReading = temp
-    timeStreamDB.write(temp)
+    
+    global last300
+    
+    if (len(last300) < 10):
+        last300.append(lastTempReading)
+    else:
+        last300.pop(0)
+        last300.append(lastTempReading)
+    
+    firebaseDatabase.update({"last_300_seconds" : last300})
     print("last T reading = " + temp)
     t = Timer(1.0, updateTempReading)
     t.start()
@@ -67,9 +77,11 @@ def updateTempReading():
 
 #firebase listener function
 def virtualButton(event):
+    global virtualButtonPressed
     virtualButtonPressed = event["data"]
+    print(event["data"])
 
-firebaseDatabase.child("notify").stream(virtualButton)
+firebaseDatabase.child("virtual_button_pressed").stream(virtualButton)
 
 # begin reading t values
 t = Timer(1.0, updateTempReading)
@@ -82,12 +94,17 @@ time.sleep(5.0)
 # main controll loop
 while (True):
     
-     buttonState = GPIO.input(button)
+    buttonState = GPIO.input(button)
     
-    if (buttonState == False):
+    if (buttonState == False or virtualButtonPressed == "True"):
 
         lcd.backlight = True
-        lcd.message = TempReader.convertToDisplayFormat(lastTempReading)
+        
+        if (lastTempReading != "US"):
+        
+            lcd.message = TempReader.convertToDisplayFormat(lastTempReading)
+        else:
+            lcd.message = "Sensor Unplugged"
     
     else:
         lcd.backlight = False

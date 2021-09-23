@@ -11,7 +11,7 @@ class TimeStream:
     def write(self, temp):
         
         CURRENT_TIME = str(int(time.time() *1000))
-        client = boto3.client('timestream-write', region_name=self.region)
+        client = boto3.client('timestream-write', region_name=self.region, aws_access_key_id="AKIA45ZVKLZMNHMGSQG3", aws_secret_access_key="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")
         dimension = [{'Name': 'data_origin', 'Value': 'raspbery_pi'}]
 
         record = {

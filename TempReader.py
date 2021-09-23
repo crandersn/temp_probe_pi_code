@@ -8,17 +8,23 @@ class TempReader:
 
     @staticmethod
     def readTempFile(): #Fundtion to read the value of Temperature
-        file = open(TempReader.device_file, 'r') #opent the file
-        lines = file.readlines() #read the lines in the file
-        file.close() #close the file
-                
-        trimmed_data = lines[1].find('t=') #find the "t=" in the line
-                
-        if trimmed_data != -1:
-            temp_string = lines[1][trimmed_data+2:] #trim the strig only to the temoerature value        
-            return temp_string
-        else: 
-            return "empty"
+        
+        try:
+        
+            file = open(TempReader.device_file, 'r') #opent the file
+            lines = file.readlines() #read the lines in the file
+            file.close() #close the file
+                    
+            trimmed_data = lines[1].find('t=') #find the "t=" in the line
+                    
+            if trimmed_data != -1:
+                temp_string = lines[1][trimmed_data+2:] #trim the strig only to the temoerature value        
+                return temp_string.strip()
+            else: 
+                return "US"
+        except:
+            return "US"
+            
 
     @staticmethod
     def convertToDisplayFormat(inputTemp):
