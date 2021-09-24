@@ -11,114 +11,141 @@ import datetime
 import boto3
 import os
 
-# set up LCD
-lcd_columns = 16
-lcd_rows = 2
-
-lcd_rs = digitalio.DigitalInOut(board.D22)
-lcd_en = digitalio.DigitalInOut(board.D17)
-lcd_d4 = digitalio.DigitalInOut(board.D25)
-lcd_d5 = digitalio.DigitalInOut(board.D24)
-lcd_d6 = digitalio.DigitalInOut(board.D23)
-lcd_d7 = digitalio.DigitalInOut(board.D18)
-backlight_d8 = digitalio.DigitalInOut(board.D8)
-
-lcd = characterlcd.Character_LCD_Mono(lcd_rs, lcd_en, lcd_d4, lcd_d5, lcd_d6, lcd_d7, lcd_columns, lcd_rows, backlight_d8)
-
-
-# configure system to read temperature probe
-os.system('modprobe w1-gpio') 
-os.system('modprobe w1-therm')
-
-#set up button
-button = 16
-GPIO.setup(button, GPIO.IN,pull_up_down=GPIO.PUD_UP)
-
-# set up switch
-
-
-# set up firebase
-firebaseConfig = { 
-  "apiKey": "AIzaSyA1XkaqnfFO8pm-yuTK5ggZpAsY27eOwn8", 
-  "authDomain": "connected-temp-sensor.firebaseapp.com", 
-  "databaseURL": "https://connected-temp-sensor-default-rtdb.firebaseio.com", 
-  "projectId": "connected-temp-sensor", 
-  "storageBucket": "connected-temp-sensor.appspot.com", 
-  "messagingSenderId": "363436241273", 
-  "appId": "1:363436241273:web:3404021c99f76d3ed2bfa8", 
-  "measurementId": "G-CD08HW864M" 
-}                     
-
-#instantiate variables to keep track of program
-firebaseDatabase = pyrebase.initialize_app(firebaseConfig).database()
-last300 = []
-virtualButtonPressed = False
-lastTempReading = None
-
-def updateTempReading():
+class ConnectedTempSensor:
     
-    temp = TempReader.getTemp()
-    global lastTempReading
-    lastTempReading = temp
-    
-    global last300
-    
-    if (len(last300) < 10):
-        last300.append(lastTempReading)
-    else:
-        last300.pop(0)
-        last300.append(lastTempReading)
-    
-    firebaseDatabase.update({"last_300_seconds" : last300})
-    print("last T reading = " + temp)
-    t = Timer(1.0, updateTempReading)
-    t.start()
+    def __init__(self):
+        # set up LCD
+        self.lcd_columns = 16
+        self.lcd_rows = 2
+
+        self.lcd_rs = digitalio.DigitalInOut(board.D22)
+        self.lcd_en = digitalio.DigitalInOut(board.D17)
+        self.lcd_d4 = digitalio.DigitalInOut(board.D25)
+        self.lcd_d5 = digitalio.DigitalInOut(board.D24)
+        self.lcd_d6 = digitalio.DigitalInOut(board.D23)
+        self.lcd_d7 = digitalio.DigitalInOut(board.D18)
+        self.backlight_d8 = digitalio.DigitalInOut(board.D8)
+
+        self.lcd = characterlcd.Character_LCD_Mono(self.lcd_rs, self.lcd_en, self.lcd_d4, self.lcd_d5, self.lcd_d6, self.lcd_d7, self.lcd_columns, self.lcd_rows, self.backlight_d8)
 
 
-#firebase listener function
-def virtualButton(event):
-    global virtualButtonPressed
-    virtualButtonPressed = event["data"]
-    print(event["data"])
+        # configure system to read temperature probe
+        os.system('modprobe w1-gpio') 
+        os.system('modprobe w1-therm')
 
-firebaseDatabase.child("virtual_button_pressed").stream(virtualButton)
+        #set up button and switch
+        self.button = 16
+        self.powerSwitch = 26
+        GPIO.setup(self.button, GPIO.IN,pull_up_down=GPIO.PUD_UP)
+        GPIO.setup(self.powerSwitch, GPIO.IN,pull_up_down=GPIO.PUD_UP)
 
-# begin reading t values
-t = Timer(1.0, updateTempReading)
-t.start()
+        # set up firebase
+        self.firebaseConfig = { 
+          "apiKey": "AIzaSyA1XkaqnfFO8pm-yuTK5ggZpAsY27eOwn8", 
+          "authDomain": "connected-temp-sensor.firebaseapp.com", 
+          "databaseURL": "https://connected-temp-sensor-default-rtdb.firebaseio.com", 
+          "projectId": "connected-temp-sensor", 
+          "storageBucket": "connected-temp-sensor.appspot.com", 
+          "messagingSenderId": "363436241273", 
+          "appId": "1:363436241273:web:3404021c99f76d3ed2bfa8", 
+          "measurementId": "G-CD08HW864M" 
+        }                     
 
-lcd.backlight = True
-lcd.message = "Powering on :)"
-time.sleep(5.0)
+        #instantiate variables to keep track of program
+        self.firebaseDatabase = pyrebase.initialize_app(self.firebaseConfig).database()
+        self.last300 = []
+        self.virtualButtonPressed = False
+        self.lastTempReading = None
 
-# main controll loop
-while (True):
-    
-    buttonState = GPIO.input(button)
-    
-    if (buttonState == False or virtualButtonPressed == "True"):
+        # begin reading t values
+        self.t = Timer(0.1, self.updateTempReading)
+        self.t.start()
 
-        lcd.backlight = True
+        self.firebaseDatabase.child("virtual_button_pressed").stream(self.virtualButton)
+
+        self.lcd.backlight = True
+        self.lcd.message = "Powering on :)"
+        time.sleep(5.0)
+
+    def updateTempReading(self):
         
-        if (lastTempReading != "US"):
+        temp = TempReader.getTemp()
+        self.lastTempReading = temp
         
-            lcd.message = TempReader.convertToDisplayFormat(lastTempReading)
+        if (len(self.last300) < 10):
+            self.last300.append(self.lastTempReading)
         else:
-            lcd.message = "Sensor Unplugged"
-    
-    else:
-        lcd.backlight = False
-        lcd.clear()
-        updatedSinceLastTempReading = True
-    
-    time.sleep(0.05)
-    
-    
-    
-    
+            self.last300.pop(0)
+            self.last300.append(self.lastTempReading)
+        
+        self.firebaseDatabase.update({"last_300_seconds" : self.last300})
+        print("last T reading = " + temp)
+        
+        self.t = Timer(0.1, self.updateTempReading)
+        self.t.start()
+
+
+    #firebase listener function
+    def virtualButton(self, event):
+        self.virtualButtonPressed = event["data"]
+        print(event["data"])
+
+    # main controll loop
+    def run(self):
+        while (True):
+            
+            self.buttonState = GPIO.input(self.button)
+            self.powerSwitchState = GPIO.input(self.powerSwitch)
+            
+            if (self.powerSwitchState != False):
+                
+                if (self.buttonState == False or self.virtualButtonPressed == "True"):
+
+                    self.lcd.backlight = True
+                    
+                    if (self.lastTempReading != "US"):
+                    
+                        self.lcd.message = TempReader.convertToDisplayFormat(self.lastTempReading)
+                    else:
+                        self.lcd.message = "Sensor Unplugged"
+                
+                else:
+                    self.lcd.backlight = False
+                    self.lcd.clear()
+                    self.updatedSinceLastTempReading = True
+                
+                time.sleep(0.05)
+            
+            else:
+                
+                self.t.cancel()
+                
+                self.lcd.backlight = True
+                self.lcd.message = "Powering off :("
+                time.sleep(2)
+                self.lcd.backlight = False
+                self.lcd.clear()
+                
+                while (self.powerSwitchState == False):
+                    
+                    time.sleep(2)
+                    self.powerSwitchState = GPIO.input(self.powerSwitch)
+                
+                self.lcd.backlight = True
+                self.lcd.message = "Powering on :)"
+                time.sleep(2.5)
+                self.lcd.clear()
+                self.lcd.backlight = False
+                
+                self.t = Timer(0.1, self.updateTempReading)
+                self.t.start()
+            
+        
+        
+        
 
 
 
-    
-    
+        
+        
 
