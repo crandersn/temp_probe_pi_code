@@ -28,6 +28,8 @@ class ConnectedTempSensor:
 
         self.lcd = characterlcd.Character_LCD_Mono(self.lcd_rs, self.lcd_en, self.lcd_d4, self.lcd_d5, self.lcd_d6, self.lcd_d7, self.lcd_columns, self.lcd_rows, self.backlight_d8)
 
+        self.timerQue = []
+
 
         # configure system to read temperature probe
         os.system('modprobe w1-gpio') 
@@ -57,10 +59,6 @@ class ConnectedTempSensor:
         self.virtualButtonPressed = False
         self.lastTempReading = None
 
-        # begin reading t values
-        self.t = Timer(0.1, self.updateTempReading)
-        self.t.start()
-
         self.firebaseDatabase.child("virtual_button_pressed").stream(self.virtualButton)
 
         self.lcd.backlight = True
@@ -72,7 +70,7 @@ class ConnectedTempSensor:
         temp = TempReader.getTemp()
         self.lastTempReading = temp
         
-        if (len(self.last300) < 10):
+        if (len(self.last300) < 300):
             self.last300.append(self.lastTempReading)
         else:
             self.last300.pop(0)
@@ -81,8 +79,16 @@ class ConnectedTempSensor:
         self.firebaseDatabase.update({"last_300_seconds" : self.last300})
         print("last T reading = " + temp)
         
+        if (self.lastTempReading == "US"):
+            time.sleep(0.85)
+        
         self.t = Timer(0.1, self.updateTempReading)
         self.t.start()
+        
+        self.timerQue.append(self.t)
+        
+        #if (len(self.timerQue) > 10):
+         #   self.timerQue.pop(0)
 
 
     #firebase listener function
@@ -92,6 +98,12 @@ class ConnectedTempSensor:
 
     # main controll loop
     def run(self):
+        
+        # begin reading t values
+        self.t = Timer(0.1, self.updateTempReading)
+        self.t.start()
+        self.timerQue.append(self.t)
+        
         while (True):
             
             self.buttonState = GPIO.input(self.button)
@@ -118,7 +130,14 @@ class ConnectedTempSensor:
             
             else:
                 
-                self.t.cancel()
+                print(*self.timerQue, sep=", ")
+                
+                for timer in self.timerQue:
+                    if (timer.isAlive()):
+                        timer.cancel()
+                        timer.join()
+                
+                self.timerQue.clear()
                 
                 self.lcd.backlight = True
                 self.lcd.message = "Powering off :("
