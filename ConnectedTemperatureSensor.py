@@ -28,9 +28,6 @@ class ConnectedTempSensor:
 
         self.lcd = characterlcd.Character_LCD_Mono(self.lcd_rs, self.lcd_en, self.lcd_d4, self.lcd_d5, self.lcd_d6, self.lcd_d7, self.lcd_columns, self.lcd_rows, self.backlight_d8)
 
-        self.timerQue = []
-
-
         # configure system to read temperature probe
         os.system('modprobe w1-gpio') 
         os.system('modprobe w1-therm')
@@ -67,7 +64,13 @@ class ConnectedTempSensor:
 
     def updateTempReading(self):
         
-        temp = TempReader.getTemp()
+        temp = ""
+        
+        if (self.powerSwitchState == False):
+            temp = "DNA"
+        else:
+            temp = TempReader.getTemp()
+        
         self.lastTempReading = temp
         
         if (len(self.last300) < 300):
@@ -80,15 +83,12 @@ class ConnectedTempSensor:
         print("last T reading = " + temp)
         
         if (self.lastTempReading == "US"):
-            time.sleep(0.85)
+            time.sleep(0.8)
+        elif (self.lastTempReading == "DNA"):
+            time.sleep(0.9)
         
         self.t = Timer(0.1, self.updateTempReading)
         self.t.start()
-        
-        self.timerQue.append(self.t)
-        
-        #if (len(self.timerQue) > 10):
-         #   self.timerQue.pop(0)
 
 
     #firebase listener function
@@ -102,7 +102,6 @@ class ConnectedTempSensor:
         # begin reading t values
         self.t = Timer(0.1, self.updateTempReading)
         self.t.start()
-        self.timerQue.append(self.t)
         
         while (True):
             
@@ -130,14 +129,6 @@ class ConnectedTempSensor:
             
             else:
                 
-                print(*self.timerQue, sep=", ")
-                
-                for timer in self.timerQue:
-                    if (timer.isAlive()):
-                        timer.cancel()
-                        timer.join()
-                
-                self.timerQue.clear()
                 
                 self.lcd.backlight = True
                 self.lcd.message = "Powering off :("
@@ -155,9 +146,6 @@ class ConnectedTempSensor:
                 time.sleep(2.5)
                 self.lcd.clear()
                 self.lcd.backlight = False
-                
-                self.t = Timer(0.1, self.updateTempReading)
-                self.t.start()
             
         
         
