@@ -28,10 +28,6 @@ class ConnectedTempSensor:
 
         self.lcd = characterlcd.Character_LCD_Mono(self.lcd_rs, self.lcd_en, self.lcd_d4, self.lcd_d5, self.lcd_d6, self.lcd_d7, self.lcd_columns, self.lcd_rows, self.backlight_d8)
 
-        # configure system to read temperature probe
-        os.system('modprobe w1-gpio') 
-        os.system('modprobe w1-therm')
-
         #set up button and switch
         self.button = 16
         self.powerSwitch = 26
